@@ -57,23 +57,26 @@ func main() {
 			},
 		},
 	})
-	// blogType := graphql.NewObject(graphql.ObjectConfig{
-	// 	Name: "Blog",
-	// 	Fields: graphql.Fields{
-	// 		"id": &graphql.Field{
-	// 			Type: graphql.String,
-	// 		},
-	// 		"account": &graphql.Field{
-	// 			Type: graphql.String,
-	// 		},
-	// 		"title": &graphql.Field{
-	// 			Type: graphql.String,
-	// 		},
-	// 		"content": &graphql.Field{
-	// 			Type: graphql.String,
-	// 		},
-	// 	},
-	// })
+	blogType := graphql.NewObject(graphql.ObjectConfig{
+		Name: "Blog",
+		Fields: graphql.Fields{
+			"id": &graphql.Field{
+				Type: graphql.String,
+			},
+			"account": &graphql.Field{
+				Type: graphql.String,
+			},
+			"title": &graphql.Field{
+				Type: graphql.String,
+			},
+			"content": &graphql.Field{
+				Type: graphql.String,
+			},
+			"type": &graphql.Field{
+				Type: graphql.String,
+			},
+		},
+	})
 	rootQuery := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Query",
 		Fields: graphql.Fields{
@@ -108,6 +111,30 @@ func main() {
 						return nil, err
 					}
 					return account, nil
+				},
+			},
+			"blogs": &graphql.Field{
+				Type: graphql.NewList(blogType),
+				Args: graphql.FieldConfigArgument{
+					"account": &graphql.ArgumentConfig{
+						Type: graphql.NewNonNull(graphql.String),
+					},
+				},
+				Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+					account := params.Args["account"].(string)
+					query := gocb.NewN1qlQuery("SELECT META(blog).id, blog.* FROM example as blog WHERE blog.type = 'blog' AND blog.account = $1")
+					var n1q1Params []interface{}
+					n1q1Params = append(n1q1Params, account)
+					rows, err := bucket.ExecuteN1qlQuery(query, n1q1Params)
+					if err != nil {
+						return nil, err
+					}
+					var blogs []Blog
+					var row Blog
+					for rows.Next(&row) {
+						blogs = append(blogs, row)
+					}
+					return blogs, nil
 				},
 			},
 		},
@@ -213,6 +240,37 @@ func main() {
 					}
 					fmt.Println("DOCUMENT Removed:", account)
 					return account, nil
+				},
+			},
+			"createBlog": &graphql.Field{
+				Type: blogType,
+				Args: graphql.FieldConfigArgument{
+					"account": &graphql.ArgumentConfig{
+						Type: graphql.NewNonNull(graphql.String),
+					},
+					"title": &graphql.ArgumentConfig{
+						Type: graphql.NewNonNull(graphql.String),
+					},
+					"content": &graphql.ArgumentConfig{
+						Type: graphql.NewNonNull(graphql.String),
+					},
+					"type": &graphql.ArgumentConfig{
+						Type: graphql.NewNonNull(graphql.String),
+					},
+				},
+				Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+					var blog Blog
+					blog.Account = params.Args["account"].(string)
+					blog.Title = params.Args["title"].(string)
+					blog.Content = params.Args["content"].(string)
+					blog.Type = params.Args["type"].(string)
+					id := uuid.NewV4()
+					_, err = bucket.Insert(id.String(), &blog, 0)
+					if err != nil {
+						return nil, err
+					}
+					blog.ID = id.String()
+					return blog, nil
 				},
 			},
 		},
