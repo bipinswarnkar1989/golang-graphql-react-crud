@@ -7,9 +7,9 @@ import (
 	"net/http"
 
 	"github.com/graphql-go/graphql"
-
 	uuid "github.com/satori/go.uuid"
 	gocb "gopkg.in/couchbase/gocb.v1"
+	"github.com/friendsofgo/graphiql"
 )
 
 type Account struct {
@@ -291,7 +291,7 @@ func main() {
 					if err != nil {
 						fmt.Println("ERROR REMOVING DOCUMENT:", err)
 					}
-					return blog,  nil
+					return blog, nil
 				},
 			},
 		},
@@ -309,5 +309,12 @@ func main() {
 		})
 		json.NewEncoder(w).Encode(result)
 	})
+	graphiqlHandler, err := graphiql.NewGraphiqlHandler("http://localhost:3000/graphql")
+	if err != nil {
+    		panic(err)
+	}
+    	
+	
+	http.Handle("/graphiql", graphiqlHandler)
 	http.ListenAndServe(":3000", nil)
 }
