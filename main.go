@@ -273,6 +273,27 @@ func main() {
 					return blog, nil
 				},
 			},
+			"deleteBlog": &graphql.Field{
+				Type: blogType,
+				Args: graphql.FieldConfigArgument{
+					"id": &graphql.ArgumentConfig{
+						Type: graphql.NewNonNull(graphql.String),
+					},
+				},
+				Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+					var blog Blog
+					blog.ID = params.Args["id"].(string)
+					_, err = bucket.Get(blog.ID, &blog)
+					if err != nil {
+						fmt.Println("ERROR RETURNING DOCUMENT:", err)
+					}
+					_, err := bucket.Remove(blog.ID, 0)
+					if err != nil {
+						fmt.Println("ERROR REMOVING DOCUMENT:", err)
+					}
+					return blog,  nil
+				},
+			},
 		},
 	})
 
